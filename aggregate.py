@@ -10,13 +10,12 @@ from __future__ import annotations
 import csv
 import logging
 import traceback
-from dataclasses import asdict
 from pathlib import Path
 from typing import Optional
 
 import numpy as np
 
-from extract import FeatureVector, extract, SAMPLE_RATE
+from extract import FeatureVector, extract, extract_essence, ESSENCE_LAYOUT, SAMPLE_RATE
 
 logger = logging.getLogger(__name__)
 
@@ -99,11 +98,13 @@ def aggregate(
 
     for p in paths:
         try:
-            fv: FeatureVector = extract(p, sr=sr)
-            vec = fv.to_flat_array()
+            vec = extract_essence(str(p))
             vectors.append(vec)
             file_list.append(str(p))
-            rows.append(asdict(fv))
+            # Build a flat CSV row: file + one column per essence dimension
+            row = {"file": str(p)}
+            row.update({f"e{i:03d}": float(vec[i]) for i in range(len(vec))})
+            rows.append(row)
             logger.info("  OK  %s  (dim=%d)", p.name, vec.shape[0])
         except Exception as exc:  # noqa: BLE001
             if skip_errors:
