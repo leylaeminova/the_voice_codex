@@ -160,18 +160,6 @@ def all_identical(results: list[tuple]) -> tuple[bool, str]:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @pytest.fixture(scope="module")
-def audio_files(tmp_path_factory: pytest.TempPathFactory) -> list[Path]:
-    """Default fixture for the top-level test_determinism — uses synth WAVs."""
-    d = tmp_path_factory.mktemp("audio_files_default")
-    files = []
-    for freq, seed in [(200, 42), (320, 43), (440, 44)]:
-        p = d / f"tone_{freq}hz.wav"
-        _make_wav(p, freq=freq, seed=seed)
-        files.append(p)
-    return files
-
-
-@pytest.fixture(scope="module")
 def synth_wavs(tmp_path_factory: pytest.TempPathFactory) -> list[Path]:
     """Three deterministic synthetic WAV files — no dataset required."""
     d = tmp_path_factory.mktemp("synth_audio")
@@ -201,12 +189,12 @@ def dataset_wavs() -> list[Path]:
 # §2  THE REQUIRED TEST — full pipeline, N_RUNS times, bit-for-bit identical
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def test_determinism(audio_files: list[Path], n_runs: int = N_RUNS) -> None:
+def test_determinism(synth_wavs: list[Path], n_runs: int = N_RUNS) -> None:
     """
     The Determinism Gate.
 
     Runs the full pipeline (extract_essence → build_aggregate → verify) on
-    *audio_files* exactly *n_runs* times and asserts all outputs are
+    *synth_wavs* exactly *n_runs* times and asserts all outputs are
     bit-for-bit identical.
 
     This is the canonical determinism contract: same inputs, same order →
@@ -215,7 +203,7 @@ def test_determinism(audio_files: list[Path], n_runs: int = N_RUNS) -> None:
     results: list[tuple] = []
 
     for run_idx in range(n_runs):
-        essences   = [extract_essence(str(f)) for f in audio_files]
+        essences   = [extract_essence(str(f)) for f in synth_wavs]
         state      = build_aggregate(essences)
         scores     = [verify(state, e) for e in essences]
         results.append((essences, state, scores))

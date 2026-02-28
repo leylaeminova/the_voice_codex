@@ -395,10 +395,11 @@ def cluster_aggregate(
     else:
         raise ValueError(f"Unknown method '{method}'. Choose 'kmeans' or 'hdbscan'.")
 
-    unique_ids = [c for c in np.unique(cluster_ids) if c != -1]
+    all_ids    = np.unique(cluster_ids)
+    unique_ids = [c for c in all_ids if c != -1]
     states: dict[int, AggregateState] = {}
 
-    for cid in np.unique(cluster_ids):
+    for cid in all_ids:
         members = essences[cluster_ids == cid]
         states[int(cid)] = build_aggregate(members)
 
@@ -428,13 +429,13 @@ class ComparisonReport:
         print("╠══════════════════════════════════════════════════════════╣")
         print(f"║  Global forge    n={self.global_state.count:3d}  "
               f"mean_var={gv:.4f}  B/W=  N/A  ║")
+        # proxy: variance of cluster means (not weighted intra-cluster variance)
+        km_means = [self.kmeans_result.states[k].mean
+                    for k in sorted(self.kmeans_result.states) if k != -1]
+        km_mean_var = forge_variance(build_aggregate(km_means)).mean()
         print(f"║  K-Means forge   "
               f"K={self.kmeans_result.n_clusters}    "
-              f"mean_var={ forge_variance(  # weighted avg
-                  build_aggregate(  # fake: just use global as proxy
-                      [self.kmeans_result.states[k].mean
-                       for k in sorted(self.kmeans_result.states) if k != -1]
-                  )).mean():.4f}  "
+              f"mean_var={km_mean_var:.4f}  "
               f"B/W={self.kmeans_result.bw_ratio:.2f}  ║")
         print(f"║  HDBSCAN forge   "
               f"K={self.hdbscan_result.n_clusters}  "
@@ -513,13 +514,12 @@ def aggregate(
     source = Path(source)
     output = Path(output)
 
-    paths = (
-        load_manifest(source)
-        if source.is_file() and source.suffix.lower() == ".csv"
-        else collect_audio_files(source, recursive=recursive)
-        if source.is_dir()
-        else (_ for _ in ()).throw(ValueError(f"Expected directory or CSV, got: {source}"))
-    )
+    if source.is_file() and source.suffix.lower() == ".csv":
+        paths = load_manifest(source)
+    elif source.is_dir():
+        paths = collect_audio_files(source, recursive=recursive)
+    else:
+        raise ValueError(f"Expected directory or CSV, got: {source}")
 
     vectors:   list[np.ndarray] = []
     file_list: list[str]        = []
@@ -549,7 +549,7 @@ def aggregate(
     matrix = np.vstack(vectors)
 
     # Save full matrix
-    np.savez_compressed(output, features=matrix, files=np.array(file_list))
+    np.savez_compressed(output, X=matrix, files=np.array(file_list))
     logger.info("Saved %s  shape=%s", output, matrix.shape)
 
     # Save aggregate state alongside (for Trial III)
@@ -573,7 +573,7 @@ def aggregate(
 def load_npz(path: str | Path) -> tuple[np.ndarray, list[str]]:
     """Load a previously saved feature matrix archive."""
     data = np.load(str(path), allow_pickle=False)
-    return data["features"], data["files"].tolist()
+    return data["X"], data["files"].tolist()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

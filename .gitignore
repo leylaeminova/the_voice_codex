@@ -32,3 +32,8 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+
+# Dataset
+voice_codex_dataset/
+The_Voice_Codex_Quest.html

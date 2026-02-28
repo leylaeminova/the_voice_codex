@@ -563,7 +563,7 @@ def plot_accuracy_vs_chorus_size(
     mahal_aucs = [results.summary[n]["mahalanobis"]["auc_roc_mean"]
                   for n in valid_sizes if "mahalanobis" in results.summary[n]]
     if mahal_aucs:
-        slope = np.polyfit(range(len(mahal_aucs)), mahal_aucs, 1)[0]
+        slope = np.polyfit(valid_sizes[:len(mahal_aucs)], mahal_aucs, 1)[0]
         direction = "decreasing" if slope < 0 else "increasing"
         ax1.annotate(
             f"Trend: AUC is {direction} with chorus size\n"
@@ -773,7 +773,7 @@ if __name__ == "__main__":
     if args.cmd == "score":
         from aggregate import load_aggregate
         state  = load_aggregate(args.aggregate_npz)
-        data   = np.load(args.essences_npz, allow_pickle=False)
+        data   = np.load(args.essence_npz, allow_pickle=False)
         ess    = data["X"][args.index]
         s      = verify(state, ess, mode=args.mode)
         pv     = p_value(state, ess)
